@@ -1,4 +1,4 @@
-package com.fit2cloud.jenkins.aliyunoss;
+package com.fit2cloud.jenkins.s3;
 
 import hudson.FilePath;
 import hudson.model.BuildListener;
@@ -10,41 +10,71 @@ import java.util.StringTokenizer;
 
 import org.apache.commons.lang.time.DurationFormatUtils;
 
-import com.aliyun.oss.OSSClient;
-import com.aliyun.oss.model.ObjectMetadata;
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.RegionUtils;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 
-public class AliyunOSSClient {
+public class AWSS3Client {
 	private static final String fpSeparator = ";";
 
-	public static boolean validateAliyunAccount(
-			final String aliyunAccessKey, final String aliyunSecretKey) throws AliyunOSSException {
+	public static boolean validateAWSAccount(
+			final String awsAccessKey, final String awsSecretKey) throws AWSS3Exception {
 		try {
-			OSSClient client = new OSSClient(aliyunAccessKey, aliyunSecretKey);
-			client.listBuckets();
+			AmazonEC2Client client = new AmazonEC2Client(new BasicAWSCredentials(awsAccessKey,awsSecretKey));
+			try {
+				client.describeRegions();
+			} catch (Exception e) {
+				client.setRegion(RegionUtils.getRegion("cn-north-1"));
+				client.describeRegions();
+			}
+		} catch (AmazonServiceException e) {
+			e.printStackTrace();
+			throw new AWSS3Exception("账号验证失败：" + e.getMessage());
 		} catch (Exception e) {
-			throw new AliyunOSSException("阿里云账号验证失败：" + e.getMessage());
+			e.printStackTrace();
+			throw new AWSS3Exception("账号验证失败：" + e.getMessage());
 		}
-		return true;
+        return true;
 	}
 
 
-	public static boolean validateOSSBucket(String aliyunAccessKey,
-			String aliyunSecretKey, String bucketName) throws AliyunOSSException{
+	public static boolean validateS3Bucket(String awsAccessKey,
+			String awsSecretKey, String bucketName) throws AWSS3Exception{
 		try {
-			OSSClient client = new OSSClient(aliyunAccessKey, aliyunSecretKey);
-			client.getBucketLocation(bucketName);
+			AmazonS3Client client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
+			client.setRegion(RegionUtils.getRegion("cn-north-1"));
+			return client.doesBucketExist(bucketName);
 		} catch (Exception e) {
-			throw new AliyunOSSException("验证Bucket名称失败：" + e.getMessage());
+			try {
+				AmazonS3Client client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
+				client.doesBucketExist(bucketName);
+			} catch (Exception e1) {
+				throw new AWSS3Exception("验证Bucket名称失败：" + e.getMessage());
+			}
 		}
 		return true;
 	}
 	
 	public static int upload(AbstractBuild<?, ?> build, BuildListener listener,
-			final String aliyunAccessKey, final String aliyunSecretKey, final String aliyunEndPointSuffix, String bucketName,String expFP,String expVP) throws AliyunOSSException {
-		OSSClient client = new OSSClient(aliyunAccessKey, aliyunSecretKey);
-		String location = client.getBucketLocation(bucketName);
-		String endpoint = "http://" + location + aliyunEndPointSuffix;
-		client = new OSSClient(endpoint, aliyunAccessKey, aliyunSecretKey);
+			final String awsAccessKey, final String awsSecretKey, String bucketName,String expFP,String expVP) throws AWSS3Exception {
+		AmazonS3Client client = null;
+		try {
+			client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
+			client.setRegion(RegionUtils.getRegion("cn-north-1"));
+			client.doesBucketExist(bucketName);
+		} catch (Exception e) {
+			try {
+				client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
+				client.doesBucketExist(bucketName);
+			} catch (Exception e1) {
+				throw new AWSS3Exception("无效的AWS 账号。");
+			}
+		}
+		
 		int filesUploaded = 0; // Counter to track no. of files that are uploaded
 		try {
 			FilePath workspacePath = build.getWorkspace();
@@ -55,8 +85,7 @@ public class AliyunOSSClient {
 			StringTokenizer strTokens = new StringTokenizer(expFP, fpSeparator);
 			FilePath[] paths = null;
 
-			listener.getLogger().println("开始上传到阿里云OSS...");
-			listener.getLogger().println("上传endpoint是：" + endpoint);
+			listener.getLogger().println("开始上传到AWS S3...");
 
 			while (strTokens.hasMoreElements()) {
 				String fileName = strTokens.nextToken();
@@ -110,9 +139,10 @@ public class AliyunOSSClient {
 						long startTime = System.currentTimeMillis();
 						InputStream inputStream = src.read();
 						try {
-							ObjectMetadata meta = new ObjectMetadata();
-							meta.setContentLength(src.length());
-							client.putObject(bucketName, key, inputStream, meta);
+							 ObjectMetadata metadata = new ObjectMetadata();
+							    metadata.setContentLength(src.length());
+				            client.putObject(new PutObjectRequest(
+				            		                 bucketName, key, inputStream, metadata));
 						} finally {
 							try {
 								inputStream.close();
@@ -127,7 +157,7 @@ public class AliyunOSSClient {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			throw new AliyunOSSException(e.getMessage(), e.getCause());
+			throw new AWSS3Exception(e.getMessage(), e.getCause());
 		}
 		return filesUploaded;
 	}

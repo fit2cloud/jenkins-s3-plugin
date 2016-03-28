@@ -1,4 +1,4 @@
-package com.fit2cloud.jenkins.aliyunoss;
+package com.fit2cloud.jenkins.s3;
 
 import hudson.Extension;
 import hudson.Launcher;
@@ -16,14 +16,13 @@ import java.io.PrintStream;
 
 import javax.servlet.ServletException;
 
-import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-public class AliyunOSSPublisher extends Publisher {
+public class AWSS3Publisher extends Publisher {
 
 	private PrintStream logger;
 	String bucketName;
@@ -55,7 +54,7 @@ public class AliyunOSSPublisher extends Publisher {
 	}
 
 	@DataBoundConstructor
-	public AliyunOSSPublisher(final String bucketName, final String filesPath, final String objectPrefix) {
+	public AWSS3Publisher(final String bucketName, final String filesPath, final String objectPrefix) {
 		this.bucketName = bucketName;
 		this.filesPath = filesPath;
 		this.objectPrefix = objectPrefix;
@@ -75,12 +74,11 @@ public class AliyunOSSPublisher extends Publisher {
 	public static final class DescriptorImpl extends
 			BuildStepDescriptor<Publisher> {
 
-		private String aliyunAccessKey;
-		private String aliyunSecretKey;
-		private String aliyunEndPointSuffix;
+		private String awsAccessKey;
+		private String awsSecretKey;
 
 		public DescriptorImpl() {
-			super(AliyunOSSPublisher.class);
+			super(AWSS3Publisher.class);
 			load();
 		}
 
@@ -96,40 +94,36 @@ public class AliyunOSSPublisher extends Publisher {
 		}
 
 		public String getDisplayName() {
-			return "上传Artifacts到阿里云OSS";
+			return "上传Artifacts到S3";
 		}
 
 		@Override
 		public boolean configure(StaplerRequest req, JSONObject formData)
 				throws FormException {
 			req.bindParameters(this);
-			this.aliyunAccessKey        = formData.getString("aliyunAccessKey");
-			this.aliyunSecretKey        = formData.getString("aliyunSecretKey");
-			this.aliyunEndPointSuffix   = formData.getString("aliyunEndPointSuffix");
+			this.awsAccessKey        = formData.getString("awsAccessKey");
+			this.awsSecretKey        = formData.getString("awsSecretKey");
 			save();
 			return super.configure(req, formData);
 		}
 
 		public FormValidation doCheckAccount(
-				@QueryParameter String aliyunAccessKey,
-				@QueryParameter String aliyunSecretKey,
+				@QueryParameter String awsAccessKey,
+				@QueryParameter String awsSecretKey,
 				@QueryParameter String aliyunEndPointSuffix) {
-			if (Utils.isNullOrEmpty(aliyunAccessKey)) {
-				return FormValidation.error("阿里云AccessKey不能为空！");
+			if (Utils.isNullOrEmpty(awsAccessKey)) {
+				return FormValidation.error("AccessKey不能为空！");
 			}
-			if (Utils.isNullOrEmpty(aliyunSecretKey)) {
-				return FormValidation.error("阿里云SecretKey不能为空！");
-			}
-			if (Utils.isNullOrEmpty(aliyunEndPointSuffix)) {
-				return FormValidation.error("阿里云EndPointSuffix不能为空！");
+			if (Utils.isNullOrEmpty(awsSecretKey)) {
+				return FormValidation.error("SecretKey不能为空！");
 			}
 			try {
-				AliyunOSSClient.validateAliyunAccount(aliyunAccessKey,
-						aliyunSecretKey);
+				AWSS3Client.validateAWSAccount(awsAccessKey,
+						awsSecretKey);
 			} catch (Exception e) {
 				return FormValidation.error(e.getMessage());
 			}
-			return FormValidation.ok("验证阿里云帐号成功！");
+			return FormValidation.ok("验证帐号成功！");
 		}
 
 		public FormValidation doCheckBucket(@QueryParameter String val)
@@ -138,8 +132,8 @@ public class AliyunOSSPublisher extends Publisher {
 				return FormValidation.error("Bucket不能为空！");
 			}
 			try {
-				AliyunOSSClient.validateOSSBucket(aliyunAccessKey,
-						aliyunSecretKey, val);
+				AWSS3Client.validateS3Bucket(awsAccessKey,
+						awsSecretKey, val);
 			} catch (Exception e) {
 				return FormValidation.error(e.getMessage());
 			}
@@ -153,29 +147,22 @@ public class AliyunOSSPublisher extends Publisher {
 			return FormValidation.ok();
 		}
 		
-		public String getAliyunAccessKey() {
-			return aliyunAccessKey;
+		public String getawsAccessKey() {
+			return awsAccessKey;
 		}
 
-		public void setAliyunAccessKey(String aliyunAccessKey) {
-			this.aliyunAccessKey = aliyunAccessKey;
+		public void setawsAccessKey(String awsAccessKey) {
+			this.awsAccessKey = awsAccessKey;
 		}
 
-		public String getAliyunSecretKey() {
-			return aliyunSecretKey;
+		public String getawsSecretKey() {
+			return awsSecretKey;
 		}
 
-		public void setAliyunSecretKey(String aliyunSecretKey) {
-			this.aliyunSecretKey = aliyunSecretKey;
+		public void setawsSecretKey(String awsSecretKey) {
+			this.awsSecretKey = awsSecretKey;
 		}
 
-		public String getAliyunEndPointSuffix() {
-			return aliyunEndPointSuffix;
-		}
-
-		public void setAliyunEndPointSuffix(String aliyunEndPointSuffix) {
-			this.aliyunEndPointSuffix = aliyunEndPointSuffix;
-		}
 	}
 
 	@Override
@@ -184,7 +171,7 @@ public class AliyunOSSPublisher extends Publisher {
 		this.logger = listener.getLogger();
 		final boolean buildFailed = build.getResult() == Result.FAILURE;
 		if (buildFailed) {
-			logger.println("Job构建失败,无需上传Aritfacts到阿里云OSS.");
+			logger.println("Job构建失败,无需上传Aritfacts到S3.");
 			return true;
 		}
 		
@@ -206,18 +193,17 @@ public class AliyunOSSPublisher extends Publisher {
 		
 		boolean success = false;
 		try {
-			int filesUploaded = AliyunOSSClient.upload(build, listener,
-                    this.getDescriptor().aliyunAccessKey,
-					this.getDescriptor().aliyunSecretKey,
-                    this.getDescriptor().aliyunEndPointSuffix,
+			int filesUploaded = AWSS3Client.upload(build, listener,
+                    this.getDescriptor().awsAccessKey,
+					this.getDescriptor().awsSecretKey,
                     bucketName, expFP, expVP);
 			if (filesUploaded > 0) { 
-				listener.getLogger().println("上传Artifacts到阿里云OSS成功，上传文件个数:" + filesUploaded);
+				listener.getLogger().println("上传Artifacts到S3成功，上传文件个数:" + filesUploaded);
 				success = true;
 			}
 
 		} catch (Exception e) {
-			this.logger.println("上传Artifact到阿里云OSS失败，错误消息如下:");
+			this.logger.println("上传Artifact到S3失败，错误消息如下:");
 			this.logger.println(e.getMessage());
 			e.printStackTrace(this.logger);
 			success = false;

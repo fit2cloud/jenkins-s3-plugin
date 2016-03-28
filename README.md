@@ -1,25 +1,24 @@
-FIT2CLOUD Aliyun-OSS-Plugin for Jenkins
+FIT2CLOUD AWS-s3-Plugin for Jenkins
 ====================
 建立统一的artifacts仓库是后续的持续部署的前提。目前，建立artifacts仓库大致有如下三种选择：
 
 1. FTP服务器：很多用户仍然在用这种方式存储Artifact
 2. 专业的Artifacts存储仓库：比如Nexus, Artifactory等。
-3. 对象存储服务：比如阿里云OSS，AWS S3等。如果用户的应用系统全部部署在阿里云中，那么使用阿里云OSS来建立artifacts仓库的好处是，a)可靠性、高可用性 b) 上传、下载速度快。
+3. 对象存储服务：比如AWS S3等。
 
 Jenkins是当前最常用的CI服务器，FIT2CLOUD Jenkins S3 Plugin的功能是：将构建后的artifact上传到S3的指定位置上去。
  	
 一、安装说明
 -------------------------
 
-插件下载地址：http://repository-proxy.fit2cloud.com:8080/content/repositories/releases/org/jenkins-ci/plugins/jenkins-s3/0.6/jenkins-s3-0.6.hpi
+插件下载地址：http://repository-proxy.fit2cloud.com:8080/content/repositories/releases/org/jenkins-ci/plugins/jenkins-s3-plugin/0.6/jenkins-s3-plugin-0.6.hpi
 在Jenkins中安装插件, 请到 Manage Jenkins | Advanced | Upload，上传插件(.hpi文件)
 安装完毕后请重新启动Jenkins
 
 二、配置说明
 -------------------------
 
-在使用插件之前，必须先在[Manage Jenkins | Configure System | 亚马逊S3账户设置]中配置亚马逊帐号的Access Key、Secret Key和Proxy 的IP和端口.
-
+在使用插件之前，必须先在[Manage Jenkins | Configure System | 亚马逊S3账户设置]中配置亚马逊帐号的Access Key、Secret Key.
 
 
 三、Post-build actions: 上传Artifact到亚马逊S3

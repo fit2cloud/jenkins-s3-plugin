@@ -1,4 +1,4 @@
-package com.fit2cloud.jenkins.aliyunoss;
+package com.fit2cloud.jenkins.s3;
 
 import java.io.IOException;
 import java.util.Map;
