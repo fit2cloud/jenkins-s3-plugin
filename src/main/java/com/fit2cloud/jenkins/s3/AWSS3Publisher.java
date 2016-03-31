@@ -2,25 +2,22 @@ package com.fit2cloud.jenkins.s3;
 
 import hudson.Extension;
 import hudson.Launcher;
-import hudson.model.BuildListener;
-import hudson.model.Result;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.model.BuildListener;
+import hudson.model.Result;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
-
-import java.io.IOException;
-import java.io.PrintStream;
-
-import javax.servlet.ServletException;
-
 import net.sf.json.JSONObject;
-
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
+
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.io.PrintStream;
 
 public class AWSS3Publisher extends Publisher {
 
@@ -77,6 +74,10 @@ public class AWSS3Publisher extends Publisher {
 		private String awsAccessKey;
 		private String awsSecretKey;
 
+
+
+		private S3Proxy s3Proxy;
+
 		public DescriptorImpl() {
 			super(AWSS3Publisher.class);
 			load();
@@ -103,6 +104,12 @@ public class AWSS3Publisher extends Publisher {
 			req.bindParameters(this);
 			this.awsAccessKey        = formData.getString("awsAccessKey");
 			this.awsSecretKey        = formData.getString("awsSecretKey");
+			this.s3Proxy = new S3Proxy(
+					formData.getString("proxyAddress").split(":")[0],
+					formData.getString("proxyAddress").split(":")[1],
+					formData.getString("proxyUsername"),
+					formData.getString("proxyPassword")
+			);
 			save();
 			return super.configure(req, formData);
 		}
@@ -110,16 +117,19 @@ public class AWSS3Publisher extends Publisher {
 		public FormValidation doCheckAccount(
 				@QueryParameter String awsAccessKey,
 				@QueryParameter String awsSecretKey,
-				@QueryParameter String aliyunEndPointSuffix) {
+				@QueryParameter String proxyAddress) {
 			if (Utils.isNullOrEmpty(awsAccessKey)) {
 				return FormValidation.error("AccessKey不能为空！");
 			}
 			if (Utils.isNullOrEmpty(awsSecretKey)) {
 				return FormValidation.error("SecretKey不能为空！");
 			}
+			if (proxyAddress.length() > 0 && !proxyAddress.contains(":")) {
+				return FormValidation.error("代理服务器需要添加端口, 例如 127.0.0.1:1080");
+			}
 			try {
 				AWSS3Client.validateAWSAccount(awsAccessKey,
-						awsSecretKey);
+						awsSecretKey, this.s3Proxy);
 			} catch (Exception e) {
 				return FormValidation.error(e.getMessage());
 			}
@@ -133,7 +143,7 @@ public class AWSS3Publisher extends Publisher {
 			}
 			try {
 				AWSS3Client.validateS3Bucket(awsAccessKey,
-						awsSecretKey, val);
+						awsSecretKey, this.s3Proxy, val);
 			} catch (Exception e) {
 				return FormValidation.error(e.getMessage());
 			}
@@ -163,6 +173,13 @@ public class AWSS3Publisher extends Publisher {
 			this.awsSecretKey = awsSecretKey;
 		}
 
+        public S3Proxy getS3Proxy() {
+			return s3Proxy;
+		}
+
+		public void setS3Proxy(S3Proxy s3Proxy) {
+			this.s3Proxy = s3Proxy;
+		}
 	}
 
 	@Override
@@ -196,6 +213,7 @@ public class AWSS3Publisher extends Publisher {
 			int filesUploaded = AWSS3Client.upload(build, listener,
                     this.getDescriptor().awsAccessKey,
 					this.getDescriptor().awsSecretKey,
+                    this.getDescriptor().getS3Proxy(),
                     bucketName, expFP, expVP);
 			if (filesUploaded > 0) { 
 				listener.getLogger().println("上传Artifacts到S3成功，上传文件个数:" + filesUploaded);

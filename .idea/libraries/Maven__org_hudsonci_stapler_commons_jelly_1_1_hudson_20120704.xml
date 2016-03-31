@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: org.hudsonci.stapler:commons-jelly:1.1-hudson-20120704">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/hudsonci/stapler/commons-jelly/1.1-hudson-20120704/commons-jelly-1.1-hudson-20120704.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/org/hudsonci/stapler/commons-jelly/1.1-hudson-20120704/commons-jelly-1.1-hudson-20120704-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/hudsonci/stapler/commons-jelly/1.1-hudson-20120704/commons-jelly-1.1-hudson-20120704-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

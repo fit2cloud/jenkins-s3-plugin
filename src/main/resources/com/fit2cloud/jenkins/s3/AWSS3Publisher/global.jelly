@@ -8,6 +8,15 @@
       <f:entry title="Secret Key" field="awsSecretKey" >
         <f:password/>
       </f:entry>
+      <f:entry title="代理服务器地址:端口" field="proxyAddress" >
+        <f:textbox/>
+      </f:entry>
+      <f:entry title="代理服务器用户名" field="proxyUsername" >
+        <f:textbox/>
+      </f:entry>
+      <f:entry title="代理服务器密码" field="proxyPassword" >
+        <f:password/>
+      </f:entry>
 	  <f:validateButton
 			title="验证账户" progress="验证中..."
 			method="checkAccount" with="awsAccessKey,awsSecretKey" />

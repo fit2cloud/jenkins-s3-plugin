@@ -1,30 +1,28 @@
 package com.fit2cloud.jenkins.s3;
 
-import hudson.FilePath;
-import hudson.model.BuildListener;
-import hudson.model.AbstractBuild;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.StringTokenizer;
-
-import org.apache.commons.lang.time.DurationFormatUtils;
-
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.RegionUtils;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import hudson.FilePath;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import org.apache.commons.lang.time.DurationFormatUtils;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.StringTokenizer;
 
 public class AWSS3Client {
 	private static final String fpSeparator = ";";
-
 	public static boolean validateAWSAccount(
-			final String awsAccessKey, final String awsSecretKey) throws AWSS3Exception {
+            final String awsAccessKey, final String awsSecretKey, S3Proxy proxy) throws AWSS3Exception {
 		try {
-			AmazonEC2Client client = new AmazonEC2Client(new BasicAWSCredentials(awsAccessKey,awsSecretKey));
+			AmazonEC2Client client = new AmazonEC2Client(new BasicAWSCredentials(awsAccessKey,awsSecretKey), getProxyConfiguration(proxy));
 			try {
 				client.describeRegions();
 			} catch (Exception e) {
@@ -41,11 +39,10 @@ public class AWSS3Client {
         return true;
 	}
 
-
 	public static boolean validateS3Bucket(String awsAccessKey,
-			String awsSecretKey, String bucketName) throws AWSS3Exception{
+			String awsSecretKey, S3Proxy proxy, String bucketName) throws AWSS3Exception{
 		try {
-			AmazonS3Client client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
+			AmazonS3Client client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey), getProxyConfiguration(proxy));
 			client.setRegion(RegionUtils.getRegion("cn-north-1"));
 			return client.doesBucketExist(bucketName);
 		} catch (Exception e) {
@@ -60,10 +57,10 @@ public class AWSS3Client {
 	}
 	
 	public static int upload(AbstractBuild<?, ?> build, BuildListener listener,
-			final String awsAccessKey, final String awsSecretKey, String bucketName,String expFP,String expVP) throws AWSS3Exception {
+                             final String awsAccessKey, final String awsSecretKey, S3Proxy proxy, String bucketName, String expFP, String expVP) throws AWSS3Exception {
 		AmazonS3Client client = null;
-		try {
-			client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
+        try {
+			client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey), getProxyConfiguration(proxy));
 			client.setRegion(RegionUtils.getRegion("cn-north-1"));
 			client.doesBucketExist(bucketName);
 		} catch (Exception e) {
@@ -166,4 +163,16 @@ public class AWSS3Client {
 		return DurationFormatUtils.formatDuration(timeInMills, "HH:mm:ss.S") + " (HH:mm:ss.S)";
 	}
 
+    private static ClientConfiguration getProxyConfiguration(S3Proxy proxy){
+        ClientConfiguration proxyConf = new ClientConfiguration();
+        if (proxy != null && proxy.getAddress().length() > 0) {
+            proxyConf.setProxyHost(proxy.getAddress());
+            proxyConf.setProxyPort(Integer.parseInt(proxy.getPort()));
+            if (proxy.getUserName() != null || proxy.getUserName().length() > 0) {
+                proxyConf.setProxyUsername(proxy.getUserName());
+                proxyConf.setProxyPassword(proxy.getPassword());
+            }
+        }
+        return proxyConf;
+    }
 }
