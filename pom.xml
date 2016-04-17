@@ -46,11 +46,6 @@
 
 	<dependencies>
         <dependency>
-            <groupId>org.eclipse.hudson</groupId>
-            <artifactId>hudson-core</artifactId>
-            <version>3.3.3</version>
-        </dependency>
-        <dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpcore</artifactId>
 			<version>4.4</version>

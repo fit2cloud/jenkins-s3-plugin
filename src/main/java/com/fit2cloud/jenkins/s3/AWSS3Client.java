@@ -4,7 +4,6 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.RegionUtils;
-import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -22,12 +21,12 @@ public class AWSS3Client {
 	public static boolean validateAWSAccount(
             final String awsAccessKey, final String awsSecretKey, S3Proxy proxy) throws AWSS3Exception {
 		try {
-			AmazonEC2Client client = new AmazonEC2Client(new BasicAWSCredentials(awsAccessKey,awsSecretKey), getProxyConfiguration(proxy));
+			AmazonS3Client client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey,awsSecretKey), getProxyConfiguration(proxy));
 			try {
-				client.describeRegions();
+				client.listBuckets();
 			} catch (Exception e) {
 				client.setRegion(RegionUtils.getRegion("cn-north-1"));
-				client.describeRegions();
+				client.listBuckets();
 			}
 		} catch (AmazonServiceException e) {
 			e.printStackTrace();
